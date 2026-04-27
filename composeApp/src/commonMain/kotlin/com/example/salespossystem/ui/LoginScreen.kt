@@ -54,7 +54,7 @@ fun LoginScreen(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Icon(
-                    imageVector = Icons.Default.LockPerson,
+                    imageVector = Icons.Default.Lock,
                     contentDescription = null,
                     modifier = Modifier.size(64.dp),
                     tint = Color.Black
@@ -110,6 +110,7 @@ fun LoginScreen(
                         }
 
                         isLoading = true
+                        // Temporary simulation of login to allow entry
                         onLoginClick(email, password, { error ->
                             isLoading = false
                             scope.launch { snackbarHostState.showSnackbar(error) }
