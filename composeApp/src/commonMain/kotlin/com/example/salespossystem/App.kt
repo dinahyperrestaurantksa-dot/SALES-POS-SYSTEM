@@ -15,49 +15,63 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.salespossystem.ui.AdminSignupScreen
-import com.example.salespossystem.ui.PromotionsScreen
-import com.example.salespossystem.ui.ReportingScreen
+import com.example.salespossystem.ui.*
 import com.example.salespossystem.ui.theme.SALESPOSSYSTEMTheme
 
 sealed class Screen(val title: String, val icon: ImageVector) {
-    object AdminSignup : Screen("Signup", Icons.Default.PersonAdd)
-    object Promotions : Screen("Promotions", Icons.Default.LocalOffer)
+    // Auth Screens (Hidden from Nav)
+    object Login : Screen("Login", Icons.Default.Lock)
+    object Signup : Screen("Signup", Icons.Default.PersonAdd)
+    
+    // Dashboard Screens (Visible in Nav)
     object Reporting : Screen("Reporting", Icons.Default.BarChart)
+    object Promotions : Screen("Promotions", Icons.Default.LocalOffer)
+    object Stock : Screen("Stock", Icons.Default.Inventory)
+    object Customers : Screen("Partners", Icons.Default.People)
+    object Expenses : Screen("Expenses", Icons.Default.Payments)
+    object Items : Screen("Items", Icons.Default.AddShoppingCart)
 }
 
 @Composable
 fun App() {
-    var currentScreen by remember { mutableStateOf<Screen>(Screen.AdminSignup) }
+    var isLoggedIn by remember { mutableStateOf(false) }
+    var currentScreen by remember { mutableStateOf<Screen>(Screen.Login) }
     
     SALESPOSSYSTEMTheme {
-        Surface(color = Color(0xFFF8F9FA)) { // Light gray background
-            BoxWithConstraints {
-                val isWideScreen = maxWidth > 800.dp
-                
-                if (isWideScreen) {
+        Surface(color = Color(0xFFF8F9FA)) {
+            if (!isLoggedIn) {
+                // Auth Flow
+                AuthContent(
+                    currentScreen = currentScreen,
+                    onScreenChange = { currentScreen = it },
+                    onLoginSuccess = { isLoggedIn = true; currentScreen = Screen.Reporting }
+                )
+            } else {
+                // Dashboard Flow
+                BoxWithConstraints {
+                    val isWideScreen = maxWidth > 900.dp
+                    
                     Row(Modifier.fillMaxSize()) {
-                        // Desktop Sidebar
-                        Sidebar(
-                            selectedScreen = currentScreen,
-                            onScreenSelected = { currentScreen = it }
-                        )
+                        if (isWideScreen) {
+                            Sidebar(
+                                selectedScreen = currentScreen,
+                                onScreenSelected = { currentScreen = it },
+                                onLogout = { isLoggedIn = false; currentScreen = Screen.Login }
+                            )
+                        }
                         
-                        // Main Content
-                        Box(Modifier.weight(1f).fillMaxHeight()) {
-                            MainContent(currentScreen, onScreenChange = { currentScreen = it })
+                        Column(Modifier.weight(1f).fillMaxHeight()) {
+                            Box(Modifier.weight(1f)) {
+                                MainDashboardContent(currentScreen)
+                            }
+                            
+                            if (!isWideScreen) {
+                                BottomNavBar(
+                                    selectedScreen = currentScreen,
+                                    onScreenSelected = { currentScreen = it }
+                                )
+                            }
                         }
-                    }
-                } else {
-                    // Mobile Layout
-                    Column(Modifier.fillMaxSize()) {
-                        Box(Modifier.weight(1f)) {
-                            MainContent(currentScreen, onScreenChange = { currentScreen = it })
-                        }
-                        BottomNavBar(
-                            selectedScreen = currentScreen,
-                            onScreenSelected = { currentScreen = it }
-                        )
                     }
                 }
             }
@@ -66,27 +80,39 @@ fun App() {
 }
 
 @Composable
-fun MainContent(currentScreen: Screen, onScreenChange: (Screen) -> Unit) {
+fun AuthContent(currentScreen: Screen, onScreenChange: (Screen) -> Unit, onLoginSuccess: () -> Unit) {
     when (currentScreen) {
-        is Screen.AdminSignup -> AdminSignupScreen(
-            onSignupSuccess = { onScreenChange(Screen.Reporting) },
-            onBackToLogin = { },
-            onRegisterClick = { _, _, _, _, _, _ -> }
+        is Screen.Login -> LoginScreen(
+            onLoginSuccess = onLoginSuccess,
+            onGoToSignup = { onScreenChange(Screen.Signup) },
+            onLoginClick = { _, _, _, onSuccess -> onSuccess() } // Auto-login for now
         )
-        is Screen.Promotions -> PromotionsScreen(
-            promotions = emptyList(),
-            products = emptyList(),
-            onAddPromotion = { _, _, _, _, _ -> },
-            onDeletePromotion = { },
-            onTogglePromotion = { _, _ -> },
-            onExportPdf = { }
+        is Screen.Signup -> AdminSignupScreen(
+            onSignupSuccess = onLoginSuccess,
+            onBackToLogin = { onScreenChange(Screen.Login) },
+            onRegisterClick = { _, _, _, _, _, onSuccess -> onSuccess() }
         )
-        is Screen.Reporting -> ReportingScreen()
+        else -> onScreenChange(Screen.Login)
     }
 }
 
 @Composable
-fun Sidebar(selectedScreen: Screen, onScreenSelected: (Screen) -> Unit) {
+fun MainDashboardContent(currentScreen: Screen) {
+    when (currentScreen) {
+        is Screen.Reporting -> ReportingScreen()
+        is Screen.Promotions -> PromotionsScreen(emptyList(), emptyList(), {_,_,_,_,_ ->}, {}, {_,_ ->}, {})
+        is Screen.Stock -> StockScreen()
+        is Screen.Customers -> CustomerSupplierScreen()
+        is Screen.Expenses -> ExpenseScreen()
+        is Screen.Items -> ItemDataEntryScreen()
+        else -> ReportingScreen()
+    }
+}
+
+@Composable
+fun Sidebar(selectedScreen: Screen, onScreenSelected: (Screen) -> Unit, onLogout: () -> Unit) {
+    val navScreens = listOf(Screen.Reporting, Screen.Promotions, Screen.Stock, Screen.Customers, Screen.Expenses, Screen.Items)
+    
     Column(
         Modifier
             .width(260.dp)
@@ -95,25 +121,14 @@ fun Sidebar(selectedScreen: Screen, onScreenSelected: (Screen) -> Unit) {
             .padding(24.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(
-                Icons.Default.Calculate,
-                contentDescription = null,
-                modifier = Modifier.size(32.dp),
-                tint = Color.Black
-            )
+            Icon(Icons.Default.Calculate, null, Modifier.size(32.dp), tint = Color.Black)
             Spacer(Modifier.width(12.dp))
-            Text(
-                "Dina POS",
-                fontSize = 24.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color.Black
-            )
+            Text("Dina POS", fontSize = 24.sp, fontWeight = FontWeight.Bold)
         }
         
         Spacer(Modifier.height(48.dp))
         
-        val screens = listOf(Screen.AdminSignup, Screen.Promotions, Screen.Reporting)
-        screens.forEach { screen ->
+        navScreens.forEach { screen ->
             SidebarItem(
                 screen = screen,
                 isSelected = selectedScreen == screen,
@@ -124,13 +139,14 @@ fun Sidebar(selectedScreen: Screen, onScreenSelected: (Screen) -> Unit) {
         
         Spacer(Modifier.weight(1f))
         
-        // Footer in Sidebar
-        Text(
-            "Version 1.0.0",
-            fontSize = 12.sp,
-            color = Color.Gray,
-            modifier = Modifier.align(Alignment.CenterHorizontally)
-        )
+        TextButton(
+            onClick = onLogout,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Icon(Icons.Default.Logout, null, tint = Color.Red)
+            Spacer(Modifier.width(12.dp))
+            Text("Logout", color = Color.Red)
+        }
     }
 }
 
@@ -139,50 +155,30 @@ fun SidebarItem(screen: Screen, isSelected: Boolean, onClick: () -> Unit) {
     Surface(
         color = if (isSelected) Color.Black else Color.Transparent,
         shape = RoundedCornerShape(12.dp),
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onClick() }
+        modifier = Modifier.fillMaxWidth().clickable { onClick() }
     ) {
-        Row(
-            Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                screen.icon,
-                null,
-                tint = if (isSelected) Color.White else Color.Gray,
-                modifier = Modifier.size(20.dp)
-            )
+        Row(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(screen.icon, null, tint = if (isSelected) Color.White else Color.Gray, modifier = Modifier.size(20.dp))
             Spacer(Modifier.width(16.dp))
-            Text(
-                screen.title,
-                color = if (isSelected) Color.White else Color.Black,
-                fontSize = 15.sp,
-                fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal
-            )
+            Text(screen.title, color = if (isSelected) Color.White else Color.Black, fontSize = 15.sp)
         }
     }
 }
 
 @Composable
 fun BottomNavBar(selectedScreen: Screen, onScreenSelected: (Screen) -> Unit) {
-    NavigationBar(
-        containerColor = Color.White,
-        tonalElevation = 8.dp
-    ) {
-        val screens = listOf(Screen.AdminSignup, Screen.Promotions, Screen.Reporting)
-        screens.forEach { screen ->
+    val navScreens = listOf(Screen.Reporting, Screen.Promotions, Screen.Stock, Screen.Customers, Screen.Expenses)
+    
+    NavigationBar(containerColor = Color.White) {
+        navScreens.forEach { screen ->
             NavigationBarItem(
                 selected = selectedScreen == screen,
                 onClick = { onScreenSelected(screen) },
                 icon = { Icon(screen.icon, null) },
-                label = { Text(screen.title) },
+                label = { Text(screen.title, fontSize = 10.sp) },
                 colors = NavigationBarItemDefaults.colors(
                     selectedIconColor = Color.Black,
-                    selectedTextColor = Color.Black,
-                    indicatorColor = Color(0xFFEEEEEE),
-                    unselectedIconColor = Color.Gray,
-                    unselectedTextColor = Color.Gray
+                    indicatorColor = Color(0xFFEEEEEE)
                 )
             )
         }
