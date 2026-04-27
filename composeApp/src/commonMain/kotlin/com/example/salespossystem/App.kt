@@ -3,6 +3,7 @@ package com.example.salespossystem
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -30,46 +31,33 @@ fun App() {
     var currentScreen by remember { mutableStateOf<Screen>(Screen.AdminSignup) }
     
     SALESPOSSYSTEMTheme {
-        Surface(color = Color.White) {
+        Surface(color = Color(0xFFF8F9FA)) { // Light gray background
             BoxWithConstraints {
-                val isWideScreen = maxWidth > 600.dp
+                val isWideScreen = maxWidth > 800.dp
                 
-                Row(Modifier.fillMaxSize()) {
-                    if (isWideScreen) {
+                if (isWideScreen) {
+                    Row(Modifier.fillMaxSize()) {
                         // Desktop Sidebar
                         Sidebar(
                             selectedScreen = currentScreen,
                             onScreenSelected = { currentScreen = it }
                         )
-                    }
-                    
-                    Column(Modifier.weight(1f).fillMaxHeight()) {
-                        Box(Modifier.weight(1f)) {
-                            when (currentScreen) {
-                                is Screen.AdminSignup -> AdminSignupScreen(
-                                    onSignupSuccess = { currentScreen = Screen.Reporting },
-                                    onBackToLogin = { },
-                                    onRegisterClick = { _, _, _, _, _, _ -> }
-                                )
-                                is Screen.Promotions -> PromotionsScreen(
-                                    promotions = emptyList(),
-                                    products = emptyList(),
-                                    onAddPromotion = { _, _, _, _, _ -> },
-                                    onDeletePromotion = { },
-                                    onTogglePromotion = { _, _ -> },
-                                    onExportPdf = { }
-                                )
-                                is Screen.Reporting -> ReportingScreen()
-                            }
-                        }
                         
-                        if (!isWideScreen) {
-                            // Mobile Bottom Navigation
-                            BottomNavBar(
-                                selectedScreen = currentScreen,
-                                onScreenSelected = { currentScreen = it }
-                            )
+                        // Main Content
+                        Box(Modifier.weight(1f).fillMaxHeight()) {
+                            MainContent(currentScreen, onScreenChange = { currentScreen = it })
                         }
+                    }
+                } else {
+                    // Mobile Layout
+                    Column(Modifier.fillMaxSize()) {
+                        Box(Modifier.weight(1f)) {
+                            MainContent(currentScreen, onScreenChange = { currentScreen = it })
+                        }
+                        BottomNavBar(
+                            selectedScreen = currentScreen,
+                            onScreenSelected = { currentScreen = it }
+                        )
                     }
                 }
             }
@@ -78,16 +66,51 @@ fun App() {
 }
 
 @Composable
+fun MainContent(currentScreen: Screen, onScreenChange: (Screen) -> Unit) {
+    when (currentScreen) {
+        is Screen.AdminSignup -> AdminSignupScreen(
+            onSignupSuccess = { onScreenChange(Screen.Reporting) },
+            onBackToLogin = { },
+            onRegisterClick = { _, _, _, _, _, _ -> }
+        )
+        is Screen.Promotions -> PromotionsScreen(
+            promotions = emptyList(),
+            products = emptyList(),
+            onAddPromotion = { _, _, _, _, _ -> },
+            onDeletePromotion = { },
+            onTogglePromotion = { _, _ -> },
+            onExportPdf = { }
+        )
+        is Screen.Reporting -> ReportingScreen()
+    }
+}
+
+@Composable
 fun Sidebar(selectedScreen: Screen, onScreenSelected: (Screen) -> Unit) {
     Column(
         Modifier
-            .width(200.dp)
+            .width(260.dp)
             .fillMaxHeight()
-            .background(Color(0xFFF5F5F5))
-            .padding(16.dp)
+            .background(Color.White)
+            .padding(24.dp)
     ) {
-        Text("POS WEB", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color.Black)
-        Spacer(Modifier.height(32.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                Icons.Default.Calculate,
+                contentDescription = null,
+                modifier = Modifier.size(32.dp),
+                tint = Color.Black
+            )
+            Spacer(Modifier.width(12.dp))
+            Text(
+                "Dina POS",
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.Black
+            )
+        }
+        
+        Spacer(Modifier.height(48.dp))
         
         val screens = listOf(Screen.AdminSignup, Screen.Promotions, Screen.Reporting)
         screens.forEach { screen ->
@@ -96,29 +119,57 @@ fun Sidebar(selectedScreen: Screen, onScreenSelected: (Screen) -> Unit) {
                 isSelected = selectedScreen == screen,
                 onClick = { onScreenSelected(screen) }
             )
+            Spacer(Modifier.height(8.dp))
         }
+        
+        Spacer(Modifier.weight(1f))
+        
+        // Footer in Sidebar
+        Text(
+            "Version 1.0.0",
+            fontSize = 12.sp,
+            color = Color.Gray,
+            modifier = Modifier.align(Alignment.CenterHorizontally)
+        )
     }
 }
 
 @Composable
 fun SidebarItem(screen: Screen, isSelected: Boolean, onClick: () -> Unit) {
-    Row(
-        Modifier
+    Surface(
+        color = if (isSelected) Color.Black else Color.Transparent,
+        shape = RoundedCornerShape(12.dp),
+        modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() }
-            .background(if (isSelected) Color.Black else Color.Transparent, MaterialTheme.shapes.small)
-            .padding(12.dp),
-        verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(screen.icon, null, tint = if (isSelected) Color.White else Color.Black)
-        Spacer(Modifier.width(12.dp))
-        Text(screen.title, color = if (isSelected) Color.White else Color.Black, fontSize = 14.sp)
+        Row(
+            Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                screen.icon,
+                null,
+                tint = if (isSelected) Color.White else Color.Gray,
+                modifier = Modifier.size(20.dp)
+            )
+            Spacer(Modifier.width(16.dp))
+            Text(
+                screen.title,
+                color = if (isSelected) Color.White else Color.Black,
+                fontSize = 15.sp,
+                fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal
+            )
+        }
     }
 }
 
 @Composable
 fun BottomNavBar(selectedScreen: Screen, onScreenSelected: (Screen) -> Unit) {
-    NavigationBar(containerColor = Color(0xFFF5F5F5)) {
+    NavigationBar(
+        containerColor = Color.White,
+        tonalElevation = 8.dp
+    ) {
         val screens = listOf(Screen.AdminSignup, Screen.Promotions, Screen.Reporting)
         screens.forEach { screen ->
             NavigationBarItem(
@@ -127,11 +178,11 @@ fun BottomNavBar(selectedScreen: Screen, onScreenSelected: (Screen) -> Unit) {
                 icon = { Icon(screen.icon, null) },
                 label = { Text(screen.title) },
                 colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = Color.White,
+                    selectedIconColor = Color.Black,
                     selectedTextColor = Color.Black,
-                    indicatorColor = Color.Black,
-                    unselectedIconColor = Color.DarkGray,
-                    unselectedTextColor = Color.DarkGray
+                    indicatorColor = Color(0xFFEEEEEE),
+                    unselectedIconColor = Color.Gray,
+                    unselectedTextColor = Color.Gray
                 )
             )
         }
