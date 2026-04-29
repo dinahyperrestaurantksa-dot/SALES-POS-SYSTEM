@@ -51,7 +51,8 @@ sealed class Screen(val title: String, val icon: ImageVector) {
 
 @Composable
 fun App() {
-    val viewModel: SalesViewModel = viewModel()
+    // Web/Wasm এ সরাসরি viewModel() কল করলে এরর দেয়, তাই ফ্যাক্টরি ব্যবহার করতে হয়
+    val viewModel: SalesViewModel = viewModel { SalesViewModel() }
     var isLoggedIn by remember { mutableStateOf(false) }
     var currentScreen by remember { mutableStateOf<Screen>(Screen.Login) }
     
