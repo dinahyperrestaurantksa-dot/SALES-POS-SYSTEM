@@ -119,19 +119,28 @@ fun DashboardFlow(currentScreen: Screen, onScreenChange: (Screen) -> Unit, onLog
 fun DashboardRouter(screen: Screen, viewModel: SalesViewModel) {
     when (screen) {
         is Screen.Home -> HomeScreen()
-        is Screen.Sale -> SaleScreen()
-        is Screen.Products -> ProductScreen()
+        is Screen.Sale -> SaleScreen(viewModel)
+        is Screen.Products -> ProductScreen(viewModel)
         is Screen.Stock -> StockScreen(viewModel)
-        is Screen.Customers -> CustomerSupplierScreen()
-        is Screen.Expenses -> ExpenseScreen()
-        is Screen.Promotions -> PromotionsScreen(emptyList(), emptyList(), {_,_,_,_,_ ->}, {}, {_,_ ->}, {})
-        is Screen.Reporting -> ReportingScreen()
-        is Screen.ItemsEntry -> ItemDataEntryScreen()
-        is Screen.Management -> ManagementDashboard()
-        is Screen.Company -> MyCompanyScreen()
+        is Screen.Customers -> CustomerSupplierScreen(viewModel)
+        is Screen.Expenses -> ExpenseScreen(viewModel)
+        is Screen.Promotions -> PromotionsScreen(
+            promotions = viewModel.promotions,
+            products = viewModel.products,
+            onAddPromotion = { name, desc, dPercent, dAmount, barcodes ->
+                viewModel.addPromotion(name, desc, dPercent, dAmount, barcodes)
+            },
+            onDeletePromotion = { id -> viewModel.deletePromotion(id) },
+            onTogglePromotion = { id, active -> viewModel.togglePromotion(id, active) },
+            onExportPdf = { /* Implementation depends on platform */ }
+        )
+        is Screen.Reporting -> ReportingScreen(viewModel)
+        is Screen.ItemsEntry -> ItemDataEntryScreen(viewModel)
+        is Screen.Management -> ManagementDashboard(viewModel)
+        is Screen.Company -> MyCompanyScreen(viewModel)
         is Screen.PriceList -> PriceListScreen()
-        is Screen.TaxRates -> TaxRatesScreen()
-        is Screen.PaymentTypes -> PaymentTypesScreen()
+        is Screen.TaxRates -> TaxRatesScreen(viewModel)
+        is Screen.PaymentTypes -> PaymentTypesScreen(viewModel)
         is Screen.UsersSecurity -> UsersSecurityScreen()
         is Screen.AdminStaff -> AdminStaffManagementScreen()
         is Screen.DamageProducts -> DamageProductScreen()
@@ -150,52 +159,71 @@ fun Sidebar(selectedScreen: Screen, onScreenSelected: (Screen) -> Unit, onLogout
         Screen.TaxRates, Screen.PaymentTypes, Screen.UsersSecurity, Screen.AdminStaff
     )
     
-    val sidebarWidth = if (isCollapsed) 80.dp else 280.dp
+    val sidebarWidth = if (isCollapsed) 80.dp else 260.dp
     
-    Column(
-        Modifier
-            .width(sidebarWidth)
-            .fillMaxHeight()
-            .background(Color.White)
-            .padding(vertical = 24.dp, horizontal = if (isCollapsed) 8.dp else 16.dp)
+    Surface(
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.width(sidebarWidth).fillMaxHeight()
     ) {
-        // App Logo/Name
-        if (!isCollapsed) {
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 8.dp)) {
-                Icon(Icons.Default.Calculate, null, Modifier.size(32.dp), tint = Color.Black)
-                Spacer(Modifier.width(12.dp))
-                Text("SP POS", fontSize = 24.sp, fontWeight = FontWeight.Bold)
-            }
-        } else {
-            Icon(Icons.Default.Calculate, null, Modifier.size(32.dp).align(Alignment.CenterHorizontally), tint = Color.Black)
-        }
-        
-        Spacer(Modifier.height(32.dp))
-        
-        // Navigation Items
-        Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
-            menuItems.forEach { screen ->
-                SidebarItem(
-                    screen = screen,
-                    isSelected = selectedScreen == screen,
-                    onClick = { onScreenSelected(screen) },
-                    isCollapsed = isCollapsed
-                )
-                Spacer(Modifier.height(4.dp))
-            }
-        }
-        
-        Spacer(Modifier.height(16.dp))
-        
-        // Logout Button
-        TextButton(
-            onClick = onLogout,
-            modifier = Modifier.fillMaxWidth()
+        Column(
+            Modifier
+                .fillMaxSize()
+                .padding(vertical = 24.dp, horizontal = if (isCollapsed) 8.dp else 16.dp)
         ) {
-            Icon(Icons.AutoMirrored.Filled.Logout, null, tint = Color.Red)
+            // App Logo/Name
             if (!isCollapsed) {
-                Spacer(Modifier.width(12.dp))
-                Text("Logout", color = Color.Red)
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 8.dp)) {
+                    Surface(
+                        color = Color.White.copy(alpha = 0.2f),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.size(40.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(Icons.Default.Calculate, null, Modifier.size(24.dp), tint = Color.White)
+                        }
+                    }
+                    Spacer(Modifier.width(12.dp))
+                    Text("SP POS", fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, color = Color.White)
+                }
+            } else {
+                Icon(Icons.Default.Calculate, null, Modifier.size(32.dp).align(Alignment.CenterHorizontally), tint = Color.White)
+            }
+            
+            Spacer(Modifier.height(40.dp))
+            
+            // Navigation Items
+            Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
+                menuItems.forEach { screen ->
+                    SidebarItem(
+                        screen = screen,
+                        isSelected = selectedScreen == screen,
+                        onClick = { onScreenSelected(screen) },
+                        isCollapsed = isCollapsed
+                    )
+                    Spacer(Modifier.height(8.dp))
+                }
+            }
+            
+            Spacer(Modifier.height(16.dp))
+            
+            // Logout Button
+            Surface(
+                onClick = onLogout,
+                color = Color.Transparent,
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    Modifier.padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = if (isCollapsed) Arrangement.Center else Arrangement.Start
+                ) {
+                    Icon(Icons.AutoMirrored.Filled.Logout, null, tint = Color.White.copy(alpha = 0.7f), modifier = Modifier.size(20.dp))
+                    if (!isCollapsed) {
+                        Spacer(Modifier.width(16.dp))
+                        Text("Logout", color = Color.White.copy(alpha = 0.7f), fontWeight = FontWeight.Medium)
+                    }
+                }
             }
         }
     }
@@ -203,29 +231,32 @@ fun Sidebar(selectedScreen: Screen, onScreenSelected: (Screen) -> Unit, onLogout
 
 @Composable
 fun SidebarItem(screen: Screen, isSelected: Boolean, onClick: () -> Unit, isCollapsed: Boolean) {
+    val bgColor = if (isSelected) Color.White.copy(alpha = 0.15f) else Color.Transparent
+    val contentColor = if (isSelected) Color.White else Color.White.copy(alpha = 0.6f)
+    
     Surface(
-        color = if (isSelected) Color.Black else Color.Transparent,
+        color = bgColor,
         shape = RoundedCornerShape(12.dp),
         modifier = Modifier.fillMaxWidth().clickable { onClick() }
     ) {
         Row(
-            Modifier.padding(horizontal = 12.dp, vertical = 10.dp), 
+            Modifier.padding(horizontal = 12.dp, vertical = 12.dp), 
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = if (isCollapsed) Arrangement.Center else Arrangement.Start
         ) {
             Icon(
                 screen.icon, 
                 null, 
-                tint = if (isSelected) Color.White else Color.Gray, 
+                tint = contentColor, 
                 modifier = Modifier.size(22.dp)
             )
             if (!isCollapsed) {
                 Spacer(Modifier.width(16.dp))
                 Text(
                     screen.title, 
-                    color = if (isSelected) Color.White else Color.Black, 
+                    color = contentColor, 
                     fontSize = 14.sp,
-                    fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal
+                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
                 )
             }
         }
